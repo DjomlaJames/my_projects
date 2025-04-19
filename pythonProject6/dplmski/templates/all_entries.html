@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% block title %}All Entries{% endblock %}
+{% block content %}
+<h1 align="center">All Entries</h1>
+<a class="btn btn-primary" href="{{ url_for('views.statistics') }}">Go to Statistics</a>
+<ul class="list-group list-group-flush">
+  <!-- Loop through expenses -->
+  {% for expense in expenses %}
+    {% if expense.amount > 0 %}
+      <li class="list-group-item">
+        Expense: {{ expense.amount }} {{ expense.currency }} ({{ expense.expense_type }})
+        {% if expense.date_created %}
+          Date: {{ expense.date_created.strftime('%Y-%m-%d') }}{% if expense.date_created.time() %} {{ expense.date_created.strftime('%H:%M') }}{% endif %}
+        {% else %}
+          Date: N/A
+        {% endif %}
+        <button type="button" class="btn btn-danger btn-sm float-right" onClick="deleteExpense({{ expense.id }})">Delete</button>
+        <a class="btn btn-info btn-sm float-right" href="{{ url_for('views.edit_expense', expense_id=expense.id) }}">Edit</a>
+
+        <!-- Form for editing expense -->
+        {% if editing_entry_id == expense.id %}
+        <form action="{{ url_for('views.edit_expense', expense_id=expense.id) }}" method="get" class="edit-form">
+          <input type="number" name="amount" value="{{ expense.amount }}" required>
+          <input type="text" name="currency" value="{{ expense.currency }}" required>
+          <input type="text" name="expenseType" value="{{ expense.expense_type }}" required>
+          <input type="datetime-local" name="date" value="{{ expense.date_created.strftime('%Y-%m-%dT%H:%M') }}" required>
+          <button type="submit" class="btn btn-primary btn-sm">Save</button>
+        </form>
+        {% endif %}
+      </li>
+    {% endif %}
+  {% endfor %}
+
+  <!-- Loop through incomes -->
+  {% for income in incomes %}
+    {% if income.amount > 0 %}
+      <li class="list-group-item">
+        Income: {{ income.amount }} {{ income.currency }} ({{ income.income_type }})
+        {% if income.date_created %}
+          Date: {{ income.date_created.strftime('%Y-%m-%d') }}{% if income.date_created.time() %} {{ income.date_created.strftime('%H:%M') }}{% endif %}
+        {% else %}
+          Date: N/A
+        {% endif %}
+        <button type="button" class="btn btn-danger btn-sm float-right" onClick="deleteIncome({{ income.id }})">Delete</button>
+        <a class="btn btn-info btn-sm float-right" href="{{ url_for('views.edit_income', income_id=income.id) }}">Edit</a>
+
+        <!-- Form for editing income -->
+        {% if editing_entry_id == income.id %}
+        <form action="{{ url_for('views.edit_income', income_id=income.id) }}" method="get" class="edit-form">
+          <input type="number" name="amount" value="{{ income.amount }}" required>
+          <input type="text" name="currency" value="{{ income.currency }}" required>
+          <input type="text" name="incomeType" value="{{ income.income_type }}" required>
+          <input type="datetime-local" name="date" value="{{ income.date_created.strftime('%Y-%m-%dT%H:%M') }}" required>
+          <button type="submit" class="btn btn-primary btn-sm">Save</button>
+        </form>
+        {% endif %}
+      </li>
+    {% endif %}
+  {% endfor %}
+</ul>
+
+<script type="text/javascript" src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+<script type="text/javascript">
+  function deleteExpense(expenseId) {
+    fetch("/delete-expense", {
+      method: "POST",
+      body: JSON.stringify({ entryId: expenseId }),
+    }).then((_res) => {
+      window.location.reload();
+    });
+  }
+
+  function deleteIncome(incomeId) {
+    fetch("/delete-income", {
+      method: "POST",
+      body: JSON.stringify({ entryId: incomeId }),
+    }).then((_res) => {
+      window.location.reload();
+    });
+  }
+</script>
+{% endblock %}
+
+
+
+
+
+

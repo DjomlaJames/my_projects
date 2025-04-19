@@ -1,0 +1,172 @@
+{% extends "base.html" %}
+{% block title %}Statistics{% endblock %}
+{% block content %}
+
+<div class="container">
+    <h2>Statistics</h2>
+
+    <label for="timePeriod">Select Time Period:</label>
+    <select id="timePeriod" onchange="updateCharts()">
+        <option value="all">All Time</option>
+        <option value="weekly">Weekly</option>
+        <option value="monthly">Monthly</option>
+        <option value="yearly">Yearly</option>
+    </select>
+
+    <div class="chart-container">
+        <!-- Canvas for Income Chart -->
+        <div style="width: 240px; height: 240px;">
+            <canvas id="incomeChart"></canvas>
+        </div>
+
+        <!-- Canvas for Expense Chart -->
+        <div style="width: 240px; height: 240px;">
+            <canvas id="expenseChart"></canvas>
+        </div>
+
+        <!-- Canvas for Total Income/Expense Chart -->
+        <div style="width: 280px; height: 280px;">
+            <canvas id="totalChart"></canvas>
+        </div>
+    </div>
+</div>
+
+<style>
+    .chart-container {
+        display: flex;
+        justify-content: space-around;
+        align-items: center;
+    }
+</style>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+// Initialize global variables for charts
+let incomeChart;
+let expenseChart;
+let totalChart;
+
+function updateCharts() {
+    const period = document.getElementById("timePeriod").value;
+
+    fetch(`/get-data?period=${period}`)
+    .then(response => response.json())
+    .then(data => {
+    console.log('Data received:', data);
+        // Parse and Update Income Chart
+        incomeChart.data.datasets[0].data = [data.incomes.job, data.incomes.side_hustle, data.incomes.gift];
+        incomeChart.update();
+
+        // Parse and Update Expense Chart
+        expenseChart.data.datasets[0].data = [data.expenses.entertainment, data.expenses.bills, data.expenses.groceries];
+        expenseChart.update();
+
+        let totalIncome = data.incomes.job + data.incomes.side_hustle + data.incomes.gift;
+        let totalExpense = data.expenses.entertainment + data.expenses.bills + data.expenses.groceries;
+        // Parse and Update Total Income/Expense Chart
+        totalChart.data.datasets[0].data = [totalIncome, totalExpense];
+        totalChart.update();
+    });
+}
+
+window.onload = function() {
+    const ctxIncome = document.getElementById('incomeChart').getContext('2d');
+    const ctxExpense = document.getElementById('expenseChart').getContext('2d');
+    const ctxTotal = document.getElementById('totalChart').getContext('2d');
+
+    // Initialize the Income Chart
+    incomeChart = new Chart(ctxIncome, {
+        type: 'doughnut',
+        options: {
+            maintainAspectRatio: false,
+            responsive: true,
+            plugins: {
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const label = context.label || '';
+                            const value = context.parsed;
+                            const total = context.dataset.data.reduce((total, number) => total + number, 0);
+                            const percentage = ((value / total) * 100).toFixed(2);
+                            return `${label}: ${value} (${percentage}%)`;
+                        }
+                    }
+                }
+            }
+        },
+        data: {
+            labels: ['Job', 'Side Hustle', 'Gift'],
+            datasets: [{
+                data: [{{job}}, {{side_hustle}}, {{gift}}],
+                backgroundColor: ['red', 'blue', 'green'],
+            }]
+        }
+    });
+
+    // Initialize the Expense Chart
+    expenseChart = new Chart(ctxExpense, {
+        type: 'doughnut',
+        options: {
+            maintainAspectRatio: false,
+            responsive: true,
+            plugins: {
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const label = context.label || '';
+                            const value = context.parsed;
+                            const total = context.dataset.data.reduce((total, number) => total + number, 0);
+                            const percentage = ((value / total) * 100).toFixed(2);
+                            return `${label}: ${value} (${percentage}%)`;
+                        }
+                    }
+                }
+            }
+        },
+        data: {
+            labels: ['Entertainment', 'Bills', 'Groceries'],
+            datasets: [{
+                data: [{{entertainment}}, {{bills}}, {{groceries}}],
+                backgroundColor: ['red', 'blue', 'green'],
+            }]
+        }
+    });
+
+    // Initialize the Total Income/Expense Chart
+    totalChart = new Chart(ctxTotal, {
+        type: 'doughnut',
+        options: {
+            maintainAspectRatio: false,
+            responsive: true,
+            plugins: {
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const label = context.label || '';
+                            const value = context.parsed;
+                            const total = context.dataset.data.reduce((total, number) => total + number, 0);
+                            const percentage = ((value / total) * 100).toFixed(2);
+                            return `${label}: ${value} (${percentage}%)`;
+                        }
+                    }
+                }
+            }
+        },
+        data: {
+            labels: ['Total Income', 'Total Expense'],
+            datasets: [{
+                data: [{{ total_incomes }}, {{ total_expenses }}],
+                backgroundColor: ['yellow', 'purple'],
+                borderColor: ['rgba(255, 99, 132, 1)', 'rgba(54, 162, 235, 1)'],
+                borderWidth: 1
+            }]
+        }
+    });
+}
+
+</script>
+
+{% endblock %}
+
+
+
+

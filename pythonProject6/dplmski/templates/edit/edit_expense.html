@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+
+{% block title %}Edit Expense{% endblock %}
+
+{% block content %}
+  <h1>Edit Expense</h1>
+
+  <form id="editExpenseForm" data-expense-id="{{ expense.id }}">
+    <div class="form-group">
+      <label for="amount">Amount</label>
+      <input type="number" class="form-control" id="amount" name="amount" value="{{ expense.amount }}">
+    </div>
+
+    <div class="form-group">
+        <label for="currency">Currency</label>
+        <select class="form-control" id="currency" name="currency">
+          <option value="" disabled>Select Currency</option>
+          <option value="USD" {% if expense.currency == 'USD' %}selected{% endif %}>USD</option>
+          <option value="EUR" {% if expense.currency == 'EUR' %}selected{% endif %}>EUR</option>
+          <option value="GBP" {% if expense.currency == 'GBP' %}selected{% endif %}>GBP</option>
+        </select>
+    </div>
+
+    <div class="form-group">
+      <label for="expenseType">Expense Type</label>
+      <select class="form-control" id="expenseType" name="expenseType">
+        <option value="" disabled>Select Expense Type</option>
+        <option value="Bills" {% if expense.expense_type == 'Bills' %}selected{% endif %}>Bills</option>
+        <option value="Groceries" {% if expense.expense_type == 'Groceries' %}selected{% endif %}>Groceries</option>
+        <option value="Entertainment" {% if expense.expense_type == 'Entertainment' %}selected{% endif %}>Entertainment</option>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label for="date">Date</label>
+      <input type="datetime-local" class="form-control" id="date" name="date" value="{{ expense.date_created.strftime('%Y-%m-%dT%H:%M') if expense.date_created else '' }}">
+    </div>
+
+    <button type="submit" class="btn btn-primary">Save Changes</button>
+  </form>
+
+  <script type="text/javascript">
+document.getElementById("editExpenseForm").addEventListener("submit", function(event) {
+    event.preventDefault();
+    console.log("Form submitted!");
+
+    const expenseId = this.getAttribute('data-expense-id');
+    const new_amount = parseFloat(document.getElementById("amount").value);
+    const new_currency = document.getElementById("currency").value;
+    const new_expense_type = document.getElementById("expenseType").value;
+    const new_date = new Date(document.getElementById("date").value);
+    const formattedDate = new_date.toISOString().slice(0,16);
+
+    // Provera da li je datum u budućnosti
+    const currentDate = new Date();
+    if (new_date > currentDate) {
+        alert("Please select a date that is now or in the past.");
+        return;
+    }
+
+    const dataToSend = {
+        "amount": new_amount,
+        "currency": new_currency,
+        "expenseType": new_expense_type,
+        "date": formattedDate
+    };
+
+    console.log("Data to send:", dataToSend);
+
+    if (!isNaN(new_amount) && new_currency && new_expense_type && new_date) {
+        fetch(`/edit-expense/${expenseId}`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify(dataToSend)
+        })
+        .then(response => {
+            console.log("Server response:", response);
+            if (!response.ok) {
+                return response.json().then(data => {
+                    throw new Error(data.message || "Unexpected error");
+                });
+            }
+            return response;
+        })
+        .then((_res) => {
+            window.location.href = "{{ url_for('views.all_entries') }}";
+        })
+        .catch(error => {
+            console.error("There was an error:", error.message);
+        });
+    } else {
+        alert("Please fill in all the required fields.");
+    }
+});
+</script>
+
+{% endblock %}

@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+
+{% block title %}Edit Income{% endblock %}
+
+{% block content %}
+  <h1>Edit Income</h1>
+
+  <form id="editIncomeForm" data-income-id="{{ income.id }}">
+    <div class="form-group">
+      <label for="amount">Amount</label>
+      <input type="number" class="form-control" id="amount" name="amount" value="{{ income.amount }}">
+    </div>
+
+    <div class="form-group">
+        <label for="currency">Currency</label>
+        <select class="form-control" id="currency" name="currency">
+          <option value="" disabled>Select Currency</option>
+          <option value="USD" {% if income.currency == 'USD' %}selected{% endif %}>USD</option>
+          <option value="EUR" {% if income.currency == 'EUR' %}selected{% endif %}>EUR</option>
+          <option value="GBP" {% if income.currency == 'GBP' %}selected{% endif %}>GBP</option>
+        </select>
+    </div>
+
+    <div class="form-group">
+      <label for="incomeType">Income Type</label>
+      <select class="form-control" id="incomeType" name="incomeType">
+        <option value="" disabled>Select Income Type</option>
+        <option value="Side_hustle" {% if income.income_type == 'Side_hustle' %}selected{% endif %}>Hustle</option>
+        <option value="Gift" {% if income.income_type == 'Gift' %}selected{% endif %}>Gift</option>
+        <option value="Job" {% if income.income_type == 'Job' %}selected{% endif %}>Job</option>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label for="date">Date</label>
+      <input type="datetime-local" class="form-control" id="date" name="date" value="{{ income.date_created.strftime('%Y-%m-%dT%H:%M') if income.date_created else '' }}">
+    </div>
+
+    <button type="submit" class="btn btn-primary">Save Changes</button>
+  </form>
+
+  <script type="text/javascript">
+document.getElementById("editIncomeForm").addEventListener("submit", function(event) {
+    event.preventDefault();
+    console.log("Form submitted!");
+
+    const incomeId = this.getAttribute('data-income-id');
+    const new_amount = parseFloat(document.getElementById("amount").value);
+    const new_currency = document.getElementById("currency").value;
+    const new_income_type = document.getElementById("incomeType").value;
+    const new_date = new Date(document.getElementById("date").value);
+    const formattedDate = new_date.toISOString().slice(0,16);
+
+    // Provera da li je datum u budućnosti
+    const currentDate = new Date();
+    if (new_date > currentDate) {
+        alert("Please select a date that is now or in the past.");
+        return;
+    }
+
+    const dataToSend = {
+        "amount": new_amount,
+        "currency": new_currency,
+        "incomeType": new_income_type,
+        "date": formattedDate
+    };
+
+    console.log("Data to send:", dataToSend);
+
+    if (!isNaN(new_amount) && new_currency && new_income_type && new_date) {
+        fetch(`/edit-income/${incomeId}`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify(dataToSend)
+        })
+        .then(response => {
+            console.log("Server response:", response);
+            if (!response.ok) {
+                return response.json().then(data => {
+                    throw new Error(data.message || "Unexpected error");
+                });
+            }
+            return response;
+        })
+        .then((_res) => {
+            window.location.href = "{{ url_for('views.all_entries') }}";
+        })
+        .catch(error => {
+            console.error("There was an error:", error.message);
+        });
+    } else {
+        alert("Please fill in all the required fields.");
+    }
+});
+</script>
+
+{% endblock %}

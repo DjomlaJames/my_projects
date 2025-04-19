@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% block title %}Home{% endblock %}
+{% block content %}
+<h1 align="center">Expenses and Income</h1>
+<form method="POST">
+  <div class="form-group">
+    <label for="expenseAmount">Expense Amount</label>
+    <input
+      type="number"
+      class="form-control"
+      id="expenseAmount"
+      name="expenseAmount"
+      placeholder="Enter expense amount"
+      step="0.01"
+      required
+    />
+  </div>
+  <div class="form-group">
+    <label for="expenseCurrency">Expense Currency</label>
+    <select class="form-control" id="expenseCurrency" name="expenseCurrency" required>
+      <option value="USD">USD</option>
+      <option value="EUR">EUR</option>
+      <option value="GBP">GBP</option>
+      <!-- Dodajte druge valute koje želite -->
+    </select>
+  </div>
+  <div class="form-group">
+    <label for="expenseType">Expense Type</label>
+    <select class="form-control" id="expenseType" name="expenseType">
+      <option value="Bills">Bills</option>
+      <option value="Groceries">Groceries</option>
+      <option value="Entertainment">Entertainment</option>
+      <!-- Dodajte druge tipove troškova koje želite -->
+    </select>
+  </div>
+  <div class="form-group">
+    <label for="incomeAmount">Income Amount</label>
+    <input
+      type="number"
+      class="form-control"
+      id="incomeAmount"
+      name="incomeAmount"
+      placeholder="Enter income amount"
+      step="0.01"
+      required
+    />
+  </div>
+  <div class="form-group">
+    <label for="incomeCurrency">Income Currency</label>
+    <select class="form-control" id="incomeCurrency" name="incomeCurrency" required>
+      <option value="USD">USD</option>
+      <option value="EUR">EUR</option>
+      <option value="GBP">GBP</option>
+      <!-- Dodajte druge valute koje želite -->
+    </select>
+  </div>
+  <div class="form-group">
+    <label for="incomeType">Income Type</label>
+    <select class="form-control" id="incomeType" name="incomeType">
+      <option value="Job">Job</option>
+      <option value="Side_hustle">Side Hustle</option>
+      <option value="Gift">Gift</option>
+      <!-- Dodajte druge tipove prihoda koje želite -->
+    </select>
+  </div>
+  <br />
+  <div align="center">
+    <button type="submit" class="btn btn-primary">Add Entry</button>
+    <a href="{{ url_for('views.all_entries') }}" class="btn btn-secondary">Show All Entries</a>
+  </div>
+</form>
+<!-- Flash messages -->
+{% with messages = get_flashed_messages() %}
+  {% if messages %}
+    <div class="alert alert-success mt-3" role="alert">
+      {{ messages[0] }}
+    </div>
+  {% endif %}
+{% endwith %}
+{% endblock %}
