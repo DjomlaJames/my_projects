@@ -1,0 +1,134 @@
+﻿@page "/signup"
+@using Microsoft.EntityFrameworkCore
+@using VideoClub.Models
+@using Microsoft.AspNetCore.Components.Forms
+@inject IDbContextFactory<VideoClub.Data.VideoClubContext> DbFactory
+@inject NavigationManager NavigationManager
+@inject VideoClub.Services.SessionService SessionService
+
+<PageTitle>Sign Up</PageTitle>
+
+@if (isLoading)
+{
+    <p>Loading...</p>
+}
+else if (isUserLoggedIn)
+{
+    <p>You are already logged in.</p>
+}
+else
+{
+    <h1>Sign Up</h1>
+    <h2>Create Account</h2>
+    <hr />
+    <div class="row">
+        <div class="col-md-4">
+            <EditForm method="post" Model="SignUpUser" OnValidSubmit="SignUpUserAction" FormName="signup" Enhance>
+                <DataAnnotationsValidator />
+                <ValidationSummary class="text-danger" role="alert" />
+                @if (!string.IsNullOrEmpty(errorMessage))
+                {
+                    <div class="alert alert-danger">@errorMessage</div>
+                }
+                <div class="mb-3">
+                    <label for="firstname" class="form-label">First Name:</label>
+                    <InputText id="firstname" @bind-Value="SignUpUser.FirstName" class="form-control" />
+                    <ValidationMessage For="() => SignUpUser.FirstName" class="text-danger" />
+                </div>
+
+                <div class="mb-3">
+                    <label for="lastname" class="form-label">Last Name:</label>
+                    <InputText id="lastname" @bind-Value="SignUpUser.LastName" class="form-control" />
+                    <ValidationMessage For="() => SignUpUser.LastName" class="text-danger" />
+                </div>
+
+                <div class="mb-3">
+                    <label for="username" class="form-label">Username:</label>
+                    <InputText id="username" @bind-Value="SignUpUser.Username" class="form-control" />
+                    <ValidationMessage For="() => SignUpUser.Username" class="text-danger" />
+                </div>
+
+                <div class="mb-3">
+                    <label for="email" class="form-label">Email:</label>
+                    <InputText id="email" @bind-Value="SignUpUser.Email" type="email" class="form-control" />
+                    <ValidationMessage For="() => SignUpUser.Email" class="text-danger" />
+                </div>
+
+                <div class="mb-3">
+                    <label for="password" class="form-label">Password:</label>
+                    <InputText id="password" @bind-Value="SignUpUser.Password" type="password" class="form-control" />
+                    <ValidationMessage For="() => SignUpUser.Password" class="text-danger" />
+                </div>
+
+                <div class="mb-3">
+                    <label for="confirmpassword" class="form-label">Confirm Password:</label>
+                    <InputText id="confirmpassword" @bind-Value="SignUpUser.ConfirmPassword" type="password" class="form-control" />
+                    <ValidationMessage For="() => SignUpUser.ConfirmPassword" class="text-danger" />
+                </div>
+
+                <button type="submit" class="btn btn-primary">Create Account</button>
+            </EditForm>
+        </div>
+    </div>
+
+    <div>
+        <a href="/">Back to Home</a>
+    </div>
+}
+
+@code {
+    private bool isLoading = true;
+    private bool isUserLoggedIn = false;
+    private string errorMessage;
+
+    [SupplyParameterFromForm]
+    private User SignUpUser { get; set; } = new() { Role = "user" };
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            var loggedInUser = await SessionService.GetUser();
+            isUserLoggedIn = !string.IsNullOrEmpty(loggedInUser);
+            isLoading = false;
+
+            
+
+            StateHasChanged();
+        }
+    }
+
+    private async Task SignUpUserAction()
+    {
+        if (string.IsNullOrEmpty(SignUpUser.Role))
+        {
+            SignUpUser.Role = "user";
+        }
+
+        using var context = DbFactory.CreateDbContext();
+
+        var existingUser = await context.Users
+            .FirstOrDefaultAsync(u => u.Username == SignUpUser.Username || u.Email == SignUpUser.Email);
+
+        if (existingUser != null)
+        {
+            if (existingUser.Username == SignUpUser.Username)
+            {
+                errorMessage = "Username is already in use.";
+            }
+            else if (existingUser.Email == SignUpUser.Email)
+            {
+                errorMessage = "Email is already in use.";
+            }
+            StateHasChanged();
+            return;
+        }
+
+        context.Users.Add(SignUpUser);
+        await context.SaveChangesAsync();
+
+        await SessionService.SetUser(SignUpUser.Username, SignUpUser.Role);
+
+        NavigationManager.NavigateTo("/", true);
+    }
+}

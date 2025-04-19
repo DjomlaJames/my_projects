@@ -1,0 +1,72 @@
+﻿@page "/orders"
+@using Microsoft.EntityFrameworkCore
+@using VideoClub.Models
+@using VideoClub.Data
+@inject IDbContextFactory<VideoClubContext> DbFactory
+@inject VideoClub.Services.SessionService SessionService
+@inject NavigationManager NavigationManager
+
+<PageTitle>Orders</PageTitle>
+
+<h1>Orders List</h1>
+
+@if (isLoading)
+{
+    <p>Loading...</p>
+}
+else if (!isAdmin)
+{
+    <p class="text-danger">Access Denied. Redirecting...</p>
+}
+else
+{
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>User</th>
+                <th>Movie</th>
+                <th>Price</th>
+                <th>Order Date</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var order in orderList)
+            {
+                <tr>
+                    <td>@order.User?.Username</td>
+                    <td>@order.Movie?.Title</td>
+                    <td>@order.Price.ToString("C")</td>
+                    <td>@order.OrderDate.ToString("dd-MM-yyyy HH:mm")</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    private List<VideoClub.Models.Order> orderList = new();
+    private bool isAdmin = false;
+    private bool isLoading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        using var context = DbFactory.CreateDbContext();
+        var userRole = await SessionService.GetUserRole();
+        isAdmin = userRole == "admin";
+        isLoading = false;
+        StateHasChanged();
+
+        
+
+        
+        orderList = await context.Orders
+            .Include(o => o.User)
+            .Include(o => o.Movie)
+            .ToListAsync();
+            
+    }
+    
+}
+
+
+

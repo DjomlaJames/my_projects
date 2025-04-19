@@ -1,0 +1,153 @@
+﻿@page "/users/edit"
+@using Microsoft.EntityFrameworkCore
+@using VideoClub.Models
+@inject IDbContextFactory<VideoClub.Data.VideoClubContext> DbFactory
+@inject NavigationManager NavigationManager
+@inject VideoClub.Services.SessionService SessionService
+
+<PageTitle>Edit User</PageTitle>
+
+@if (isLoading)
+{
+    <p>Loading...</p>
+}
+else if (!isAdmin)
+{
+    <p>You are not authorized to edit users.</p>
+}
+else if (User is null)
+{
+    <p>User not found.</p>
+}
+else
+{
+    <h1>Edit User</h1>
+    <EditForm method="post" Model="User" OnValidSubmit="UpdateUser" FormName="edit" Enhance>
+        <DataAnnotationsValidator />
+        <ValidationSummary role="alert" />
+        @if (!string.IsNullOrEmpty(errorMessage))
+        {
+            <div class="alert alert-danger">@errorMessage</div>
+        }
+        <input type="hidden" name="User.Id" value="@User.Id" />
+        <div class="mb-3">
+            <label for="firstname" class="form-label">First Name:</label>
+            <InputText id="firstname" @bind-Value="User.FirstName" class="form-control" aria-required="true" />
+        </div>
+        <div class="mb-3">
+            <label for="lastname" class="form-label">Last Name:</label>
+            <InputText id="lastname" @bind-Value="User.LastName" class="form-control" aria-required="true" />
+        </div>
+        <div class="mb-3">
+            <label for="username" class="form-label">Username:</label>
+            <InputText id="username" @bind-Value="User.Username" class="form-control" aria-required="true" />
+        </div>
+        <div class="mb-3">
+            <label for="email" class="form-label">Email:</label>
+            <InputText id="email" @bind-Value="User.Email" class="form-control" readonly />
+        </div>
+        <div class="mb-3">
+            <label for="password" class="form-label">Password:</label>
+            <InputText id="password" @bind-Value="User.Password" class="form-control" aria-required="true" />
+        </div>
+        <div class="mb-3">
+                    <label for="confirmpassword" class="form-label">Confirm Password:</label>
+                    <InputText id="confirmpassword" @bind-Value="User.ConfirmPassword" type="password" class="form-control" />
+                    <ValidationMessage For="() => User.ConfirmPassword" class="text-danger" />
+                </div>
+        <div class="mb-3">
+            <label for="role" class="form-label">Role:</label>
+            <InputSelect id="role" @bind-Value="User.Role" class="form-select" aria-required="true" disabled="@isSelfEdit">
+                <option value="user">User</option>
+                <option value="admin">Admin</option>
+            </InputSelect>
+            <ValidationMessage For="() => User.Role" class="text-danger" />
+        </div>
+        <button type="submit" class="btn btn-primary">Save</button>
+    </EditForm>
+
+    <div>
+        <a href="/users">Back to List</a>
+    </div>
+}
+
+@code {
+    private bool isAdmin = false;
+    private bool isLoading = true;
+    private bool isSelfEdit = false;
+    private string? loggedInUsername;
+    private string errorMessage = "";
+
+    [SupplyParameterFromQuery]
+    private int Id { get; set; }
+
+    private User? User { get; set; }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            loggedInUsername = await SessionService.GetUser();
+            var userRole = await SessionService.GetUserRole();
+            isAdmin = userRole == "admin";
+            isLoading = false;
+
+            
+
+            using var context = DbFactory.CreateDbContext();
+            User = await context.Users.FirstOrDefaultAsync(m => m.Id == Id);
+
+            
+
+            isSelfEdit = User.Username == loggedInUsername;
+            StateHasChanged();
+        }
+    }
+
+    private async Task UpdateUser()
+    {
+        using var context = DbFactory.CreateDbContext();
+
+        if (isSelfEdit && User!.Role != "admin")
+        {
+            errorMessage = "You cannot change your own role.";
+            return;
+        }
+
+        var duplicateUser = await context.Users
+            .Where(u => u.Username == User!.Username && u.Id != User.Id)
+            .FirstOrDefaultAsync();
+
+        if (duplicateUser != null)
+        {
+            errorMessage = "Username is already in use.";
+            return;
+        }
+
+        context.Attach(User!).State = EntityState.Modified;
+
+        try
+        {
+            await context.SaveChangesAsync();
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            if (!UserExists(User!.Id))
+            {
+                NavigationManager.NavigateTo("notfound");
+            }
+            else
+            {
+                throw;
+            }
+        }
+
+        NavigationManager.NavigateTo("/users");
+    }
+
+    private bool UserExists(int id)
+    {
+        using var context = DbFactory.CreateDbContext();
+        return context.Users.Any(e => e.Id == id);
+    }
+}

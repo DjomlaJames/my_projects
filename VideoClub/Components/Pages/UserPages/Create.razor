@@ -1,0 +1,133 @@
+﻿@page "/users/create"
+@using Microsoft.EntityFrameworkCore
+@using VideoClub.Models
+@inject IDbContextFactory<VideoClub.Data.VideoClubContext> DbFactory
+@inject NavigationManager NavigationManager
+@inject VideoClub.Services.SessionService SessionService
+
+<PageTitle>Create User</PageTitle>
+
+@if (isLoading)
+{
+    <p>Loading...</p>
+}
+else if (!isAdmin)
+{
+    <p>You are not authorized to create new users.</p>
+}
+else
+{
+    <h1>Create</h1>
+    <h2>User</h2>
+    <hr />
+    <div class="row">
+        <div class="col-md-4">
+            <EditForm method="post" Model="User" OnValidSubmit="AddUser" FormName="create" Enhance>
+                <DataAnnotationsValidator />
+                <ValidationSummary class="text-danger" role="alert" />
+                @if (!string.IsNullOrEmpty(errorMessage))
+                {
+                    <div class="alert alert-danger">@errorMessage</div>
+                }
+                <div class="mb-3">
+                    <label for="firstname" class="form-label">FirstName:</label>
+                    <InputText id="firstname" @bind-Value="User.FirstName" class="form-control" aria-required="true" />
+                    <ValidationMessage For="() => User.FirstName" class="text-danger" />
+                </div>
+                <div class="mb-3">
+                    <label for="lastname" class="form-label">LastName:</label>
+                    <InputText id="lastname" @bind-Value="User.LastName" class="form-control" aria-required="true" />
+                    <ValidationMessage For="() => User.LastName" class="text-danger" />
+                </div>
+                <div class="mb-3">
+                    <label for="username" class="form-label">Username:</label>
+                    <InputText id="username" @bind-Value="User.Username" class="form-control" aria-required="true" />
+                    <ValidationMessage For="() => User.Username" class="text-danger" />
+                </div>
+                <div class="mb-3">
+                    <label for="email" class="form-label">Email:</label>
+                    <InputText id="email" @bind-Value="User.Email" class="form-control" aria-required="true" />
+                    <ValidationMessage For="() => User.Email" class="text-danger" />
+                </div>
+                <div class="mb-3">
+                    <label for="password" class="form-label">Password:</label>
+                    <InputText id="password" @bind-Value="User.Password" class="form-control" aria-required="true" />
+                    <ValidationMessage For="() => User.Password" class="text-danger" />
+                </div>
+                <div class="mb-3">
+                    <label for="confirmpassword" class="form-label">Confirm Password:</label>
+                    <InputText id="confirmpassword" @bind-Value="User.ConfirmPassword" type="password" class="form-control" />
+                    <ValidationMessage For="() => User.ConfirmPassword" class="text-danger" />
+                </div>
+                <div class="mb-3">
+                    <label for="role" class="form-label">Role:</label>
+                    <InputSelect id="role" @bind-Value="User.Role" class="form-select" aria-required="true">
+                        <option value="user">User</option>
+                        <option value="admin">Admin</option>
+                    </InputSelect>
+                    <ValidationMessage For="() => User.Role" class="text-danger" />
+                </div>
+
+                <button type="submit" class="btn btn-primary">Create</button>
+            </EditForm>
+        </div>
+    </div>
+
+    <div>
+        <a href="/users">Back to List</a>
+    </div>
+}
+
+@code {
+    private bool isAdmin = false;
+    private bool isLoading = true;
+    private string errorMessage = "";
+
+
+    [SupplyParameterFromForm]
+    private User User { get; set; } = new() { Role = "user" };
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            var userRole = await SessionService.GetUserRole();
+            isAdmin = userRole == "admin";
+            isLoading = false;
+
+            
+
+            StateHasChanged();
+        }
+    }
+
+    private async Task AddUser()
+    {
+        using var context = DbFactory.CreateDbContext();
+
+        // Provera da li korisnik sa istim Username-om ili Email-om već postoji
+        var existingUser = await context.Users
+            .FirstOrDefaultAsync(u => u.Username == User.Username || u.Email == User.Email);
+
+        if (existingUser != null)
+        {
+            if (existingUser.Username == User.Username)
+            {
+                errorMessage = "Username is already in use.";
+            }
+            else if (existingUser.Email == User.Email)
+            {
+                errorMessage = "Email is already in use.";
+            }
+            
+
+            StateHasChanged(); // Osvežavamo UI da bi korisnik video poruku
+            return;
+        }
+        
+
+        context.Users.Add(User);
+        await context.SaveChangesAsync();
+        NavigationManager.NavigateTo("/users");
+    }
+}

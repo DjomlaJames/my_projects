@@ -1,0 +1,66 @@
+﻿@inject NavigationManager NavigationManager
+@inherits LayoutComponentBase
+
+@inject VideoClub.Services.SessionService SessionService
+
+<div class="page">
+    <div class="sidebar">
+        <NavMenu />
+    </div>
+
+    <main>
+        <div class="top-row px-4">
+            <a href="https://learn.microsoft.com/aspnet/core/" target="_blank">About</a>
+
+            @if (isLoading)
+            {
+                <span>Loading...</span>
+            }
+            else if (string.IsNullOrEmpty(loggedInUser) && !NavigationManager.Uri.Contains("/login", StringComparison.OrdinalIgnoreCase))
+            {
+                <a href="/login" class="btn btn-primary">Log In</a>
+            }
+            else if (!string.IsNullOrEmpty(loggedInUser))
+            {
+                <span> User: @loggedInUser </span>
+                <button @onclick="Logout" class="btn btn-danger">Log Out</button>
+            }
+        </div>
+
+        <article class="content px-4">
+            @Body
+        </article>
+    </main>
+</div>
+
+@code {
+    private string? loggedInUser;
+    private bool isLoading = true;
+    private bool isAdmin = false;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            loggedInUser = await SessionService.GetUser(); // Učitaj korisničko ime iz sessionStorage
+            isLoading = false; // Postavi da je učitavanje završeno
+            StateHasChanged(); // Osveži UI
+            var role = await SessionService.GetUserRole();
+            isAdmin = role == "admin";
+
+            NavigationManager.LocationChanged += (sender, args) =>
+            {
+                StateHasChanged(); // Osveži UI kada se promeni URL
+            };
+        }
+    }
+
+    private async Task Logout()
+    {
+        await SessionService.Logout();
+        loggedInUser = null;
+        isAdmin = false; // Resetujemo admin status
+        StateHasChanged(); // Osvežavamo UI
+        NavigationManager.NavigateTo("/", true);
+    }
+}

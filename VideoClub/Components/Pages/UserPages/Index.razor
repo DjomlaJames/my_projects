@@ -1,0 +1,72 @@
+﻿@page "/users"
+@using Microsoft.EntityFrameworkCore
+@using Microsoft.AspNetCore.Components.QuickGrid
+@using VideoClub.Models
+@using VideoClub.Data
+@inject IDbContextFactory<VideoClub.Data.VideoClubContext> DbFactory
+@inject NavigationManager NavigationManager
+@inject VideoClub.Services.SessionService SessionService
+
+<PageTitle>Users</PageTitle>
+
+@if (isLoading)
+{
+    <p>Loading...</p>
+}
+else if (!isAdmin)
+{
+    <p>You are not authorized to view this page.</p>
+}
+else if (context == null)
+{
+    <p>Database context is not initialized.</p>
+}
+else
+{
+    <h1>Users</h1>
+
+    <p>
+        <a href="users/create">Create New</a>
+    </p>
+
+    <QuickGrid Class="table" Items="context.Users">
+        <PropertyColumn Property="user => user.Id" Title="ID" />
+        <PropertyColumn Property="user => user.FirstName" />
+        <PropertyColumn Property="user => user.LastName" />
+        <PropertyColumn Property="user => user.Username" />
+        <PropertyColumn Property="user => user.Email" />
+        <PropertyColumn Property="user => user.Role" />
+
+        <TemplateColumn Context="user">
+            <a href="@($"users/edit?id={user.Id}")">Edit</a> |
+            <a href="@($"users/details?id={user.Id}")">Details</a> |
+            <a href="@($"users/delete?id={user.Id}")">Delete</a>
+        </TemplateColumn>
+    </QuickGrid>
+}
+
+@code {
+    private VideoClubContext? context = null;
+    private bool isAdmin = false;
+    private bool isLoading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var userRole = await SessionService.GetUserRole();
+        isAdmin = userRole == "admin";
+        isLoading = false;
+
+        
+
+        context = DbFactory.CreateDbContext(); // Kreiramo context tek kada znamo da je admin
+        StateHasChanged();
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (context != null)
+        {
+            await context.DisposeAsync();
+        }
+    }
+}

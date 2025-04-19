@@ -1,0 +1,151 @@
+﻿@page "/"
+@using Microsoft.EntityFrameworkCore
+@using Microsoft.AspNetCore.Components.QuickGrid
+@using VideoClub.Models
+@using VideoClub.Data
+@implements IAsyncDisposable
+@inject IDbContextFactory<VideoClub.Data.VideoClubContext> DbFactory
+@inject VideoClub.Services.SessionService SessionService
+<PageTitle>Index</PageTitle>
+
+<h1>Index</h1>
+
+<div>
+    <label>Titie:</label>
+    <input type="search" @bind="titleFilter" @bind:event="oninput" />
+</div>
+
+<div>
+
+    <label>Genre:</label>
+    <InputSelect @bind-Value="selectedGenre" TValue="string">
+        <option value="">All Genres</option>
+        @foreach (var genre in GenreOptions)
+        {
+            <option value="@genre">@genre</option>
+        }
+    </InputSelect>
+</div>
+
+<div>
+    <label>Rating:</label>
+    <InputSelect @bind-Value="selectedRating" TValue="string">
+        <option value="">All Ratings</option>
+        @foreach (var rating in RatingOptions)
+        {
+            <option value="@rating">@rating</option>
+        }
+    </InputSelect>
+</div>
+
+@if(isAdmin){
+
+    <p>
+        <a href="/create">Add new movie</a>
+    </p>
+}
+
+@* <QuickGrid Class="table" Items="FilteredMovies" Pagination="pagination"> *@
+<QuickGrid TGridItem="VideoClub.Models.Movie" Class="table" ItemsProvider="GetItems" ItemKey="(x => x.Id)" Pagination="pagination">
+    <PropertyColumn Property="movie => movie.Title" Sortable="true" />
+    <PropertyColumn Property="movie => movie.DateRelease" Title="Release year" Sortable="true" />
+    <PropertyColumn Property="movie => movie.Genre" />
+    <PropertyColumn Property="movie => movie.Rating" />
+    <PropertyColumn Property="movie => movie.Stocks" Title="Copies" />
+    <PropertyColumn Property="movie => movie.Price" Sortable="true" />
+
+    <TemplateColumn Context="movie">
+
+
+        <a hidden="@(isAdmin == false)" href="@($"/edit?id={movie.Id}")">Edit | </a> 
+        <a href="@($"/details?id={movie.Id}")">Details | </a>
+        <a hidden="@(isAdmin == false)" href="@($"/delete?id={movie.Id}")">Delete</a>
+
+    </TemplateColumn>
+</QuickGrid>
+<Paginator State="pagination" />
+
+@code {
+    private VideoClubContext context = default!;
+
+    private PaginationState pagination = new PaginationState { ItemsPerPage = 5 };
+
+    private string titleFilter = string.Empty;
+    private string selectedGenre = string.Empty;
+    private string selectedRating = string.Empty;
+
+    private bool isAdmin = false;
+    private bool isLoading = true; // Dodajemo isLoading da ne prikazuje "Loading..." zauvek
+
+
+    private readonly List<string> GenreOptions = new()
+    {
+        "Action", "Comedy", "Drama", "Horror", "Sci-Fi", "Thriller", "Animation", "Documentary", "Romance", "Fantasy","History","Sport","Musical","Mystery","War","Wester","Crime","Biography","Mystery","Family","Adventure"
+    };
+
+    private readonly List<string> RatingOptions = new()
+    {
+        "G", "PG", "PG-13", "R", "NC-17"
+    };
+
+    // private IQueryable<Movie> FilteredMovies =>
+    //     context.Movies
+    //         .Where(m => m.Title!.Contains(titleFilter))
+    //         .Where(m => string.IsNullOrEmpty(selectedGenre) || m.Genre == selectedGenre)
+    //         .Where(m => string.IsNullOrEmpty(selectedRating) || m.Rating == selectedRating);
+
+    public async ValueTask<GridItemsProviderResult<Movie>> GetItems(
+           GridItemsProviderRequest<Movie> request)
+    {
+
+        using var context = DbFactory.CreateDbContext();
+        var totalCount = await context.Movies.CountAsync(request.CancellationToken);
+        IQueryable<Movie> query = context.Movies
+            .Where(m => m.Title!.Contains(titleFilter))
+              .Where(m => string.IsNullOrEmpty(selectedGenre) || m.Genre == selectedGenre)
+              .Where(m => string.IsNullOrEmpty(selectedRating) || m.Rating == selectedRating)
+        .OrderBy(x => x.Id);
+        query = request.ApplySorting(query).Skip(request.StartIndex);
+        if (request.Count.HasValue)
+        {
+            query = query.Take(request.Count.Value);
+        }
+
+        var items = await query.ToArrayAsync(request.CancellationToken);
+        var result = new GridItemsProviderResult<Movie>
+            {
+                Items = items,
+                TotalItemCount = totalCount
+            };
+
+        return result;
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        context = DbFactory.CreateDbContext();
+
+        var userRole = await SessionService.GetUserRole();
+        isAdmin = userRole == "admin";
+        isLoading = false; // Kada završi učitavanje, skloni "Loading..."
+        StateHasChanged();
+
+
+    }
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+
+            // var userRole = await SessionService.GetUserRole();
+            // isAdmin = userRole == "admin";
+            // isLoading = false; // Kada završi učitavanje, skloni "Loading..."
+            // StateHasChanged();
+
+            
+        }
+    }
+
+    public async ValueTask DisposeAsync() => await context.DisposeAsync();
+}
+

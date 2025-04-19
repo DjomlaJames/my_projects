@@ -1,0 +1,50 @@
+﻿@inject VideoClub.Services.SessionService SessionService
+
+<div class="top-row ps-3 navbar navbar-dark">
+    <div class="container-fluid">
+        <a class="navbar-brand" href="">VideoClub</a>
+    </div>
+</div>
+
+<input type="checkbox" title="Navigation menu" class="navbar-toggler" />
+
+<div class="nav-scrollable" onclick="document.querySelector('.navbar-toggler').click()">
+    <nav class="nav flex-column">
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="/" Match="NavLinkMatch.All">
+                <span class="bi bi-house-door-fill-nav-menu" aria-hidden="true"></span> Home
+            </NavLink>
+        </div>
+
+        @if (isAdmin)
+        {
+            <div class="nav-item px-3">
+                <NavLink class="nav-link" href="/users">
+                    <span class="bi bi-plus-square-fill-nav-menu" aria-hidden="true"></span> Users
+                </NavLink>
+            </div>
+        }@if (isAdmin)
+        {
+            <div class="nav-item px-3">
+                <NavLink class="nav-link" href="/orders">
+                    <span class="bi bi-plus-square-fill-nav-menu" aria-hidden="true"></span> Orders
+                </NavLink>
+            </div>
+        }
+        
+    </nav>
+</div>
+
+@code {
+    private bool isAdmin = false;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            var userRole = await SessionService.GetUserRole();
+            isAdmin = userRole == "admin";
+            StateHasChanged();
+        }
+    }
+}

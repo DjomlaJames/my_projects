@@ -1,0 +1,159 @@
+﻿@page "/edit"
+@using Microsoft.EntityFrameworkCore
+@using VideoClub.Models
+@inject IDbContextFactory<VideoClub.Data.VideoClubContext> DbFactory
+@inject NavigationManager NavigationManager
+@inject VideoClub.Services.SessionService SessionService
+
+<PageTitle>Edit</PageTitle>
+
+<h1>Edit</h1>
+
+@if (isLoading)
+{
+    <p>Loading...</p>
+}
+else if (!isAdmin)
+{
+    <p class="text-danger">Access Denied. </p>
+}
+else
+{
+    <h2>Movie</h2>
+    <hr />
+    @if (Movie is null)
+    {
+        <p><em>Loading...</em></p>
+    }
+    else
+    {
+        <div class="row">
+            <div class="col-md-4">
+                <EditForm method="post" Model="Movie" OnValidSubmit="UpdateMovie" FormName="edit" Enhance>
+                    <DataAnnotationsValidator />
+                    <ValidationSummary role="alert"/>
+                    <input type="hidden" name="Movie.Id" value="@Movie.Id" />
+                    <div class="mb-3">
+                        <label for="title" class="form-label">Title:</label>
+                        <InputText id="title" @bind-Value="Movie.Title" class="form-control" aria-required="true"/>
+                        <ValidationMessage For="() => Movie.Title" class="text-danger" />
+                    </div>
+                    <div class="mb-3">
+                        <label for="daterelease" class="form-label">Release Year:</label>
+                        <InputNumber id="daterelease" @bind-Value="Movie.DateRelease" class="form-control" aria-required="true"/>
+                        <ValidationMessage For="() => Movie.DateRelease" class="text-danger" />
+                    </div>
+                    <div class="mb-3">
+                        <label for="genre" class="form-label">Genre:</label>
+                        <InputSelect id="genre" @bind-Value="Movie.Genre" class="form-select">
+                            @foreach (var genre in GenreOptions)
+                            {
+                                <option value="@genre">@genre</option>
+                            }
+                        </InputSelect>
+                        <ValidationMessage For="() => Movie.Genre" class="text-danger" />
+                    </div>
+                    <div class="mb-3">
+                        <label for="rating" class="form-label">Rating:</label>
+                        <InputSelect id="rating" @bind-Value="Movie.Rating" class="form-select">
+                            @foreach (var rating in RatingOptions)
+                            {
+                                <option value="@rating">@rating</option>
+                            }
+                        </InputSelect>
+                        <ValidationMessage For="() => Movie.Rating" class="text-danger" />
+                    </div>
+                    <div class="mb-3">
+                        <label for="stocks" class="form-label">Copies:</label>
+                        <InputNumber id="stocks" @bind-Value="Movie.Stocks" class="form-control" aria-required="true"/>
+                        <ValidationMessage For="() => Movie.Stocks" class="text-danger" />
+                    </div>
+                    <div class="mb-3">
+                        <label for="price" class="form-label">Price:</label>
+                        <InputNumber id="price" @bind-Value="Movie.Price" class="form-control" aria-required="true"/>
+                        <ValidationMessage For="() => Movie.Price" class="text-danger" />
+                    </div>
+                    <button type="submit" class="btn btn-primary">Save</button>
+                </EditForm>
+            </div>
+        </div>
+    <div>
+    <a href="/movies">Back to List</a>
+    </div>
+    }
+}
+
+
+
+@code {
+    [SupplyParameterFromQuery]
+    private int Id { get; set; }
+
+    [SupplyParameterFromForm]
+    private Movie? Movie { get; set; }
+
+    private bool isAdmin = false;
+    private bool isLoading = true;
+
+    private readonly List<string> GenreOptions = new()
+    {
+        "Action","Adventure","Animation","Biography","Comedy","Crime","Documentary","Drama","Family","Fantasy","History","Horror","Musical","Mystery","Romance","Sci-Fi","Sport","Thriller","War","Western"
+    };
+
+    private readonly List<string> RatingOptions = new()
+    {
+        "G", "PG", "PG-13", "R", "NC-17"
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        isLoading = true;
+
+        using var context = DbFactory.CreateDbContext();
+        
+        // Proveravamo ulogu korisnika
+        var userRole = await SessionService.GetUserRole();
+        isAdmin = userRole == "admin";
+
+        
+
+        Movie ??= await context.Movies.FirstOrDefaultAsync(m => m.Id == Id);
+
+        if (Movie is null)
+        {
+            NavigationManager.NavigateTo("notfound");
+        }
+
+        isLoading = false;
+    }
+
+    private async Task UpdateMovie()
+    {
+        using var context = DbFactory.CreateDbContext();
+        context.Attach(Movie!).State = EntityState.Modified;
+
+        try
+        {
+            await context.SaveChangesAsync();
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            if (!MovieExists(Movie!.Id))
+            {
+                NavigationManager.NavigateTo("notfound");
+            }
+            else
+            {
+                throw;
+            }
+        }
+
+        NavigationManager.NavigateTo("/");
+    }
+
+    private bool MovieExists(int id)
+    {
+        using var context = DbFactory.CreateDbContext();
+        return context.Movies.Any(e => e.Id == id);
+    }
+}

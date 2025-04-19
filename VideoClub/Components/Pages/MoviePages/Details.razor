@@ -1,0 +1,143 @@
+﻿@page "/details"
+@using Microsoft.EntityFrameworkCore
+@using VideoClub.Models
+@inject IDbContextFactory<VideoClub.Data.VideoClubContext> DbFactory
+@inject NavigationManager NavigationManager
+@inject VideoClub.Services.SessionService SessionService
+
+<PageTitle>Details</PageTitle>
+
+<h1>Details</h1>
+
+<div>
+    
+    <h2>Movie</h2>
+    <hr />
+    @if (movie is null)
+    {
+        <p><em>Loading...</em></p>
+    }
+    else {
+        <dl class="row">
+            <dt class="col-sm-2">Title</dt>
+            <dd class="col-sm-10">@movie.Title</dd>
+            <dt class="col-sm-2">Release Year</dt>
+            <dd class="col-sm-10">@movie.DateRelease</dd>
+            <dt class="col-sm-2">Genre</dt>
+            <dd class="col-sm-10">@movie.Genre</dd>
+            <dt class="col-sm-2">Rating</dt>
+            <dd class="col-sm-10">@movie.Rating</dd>
+            <dt class="col-sm-2">Copies</dt>
+            <dd class="col-sm-10">@movie.Stocks</dd>
+            <dt class="col-sm-2">Price</dt>
+            <dd class="col-sm-10">@movie.Price</dd>
+        </dl>
+        <div>
+            <a href="@($"/")">Back to List</a>
+        </div>
+        @if (isUser)
+        {
+            <button class="btn btn-success" @onclick="ShowOrderModal" disabled="@(movie?.Stocks == 0)">Order</button>
+            @if (movie?.Stocks == 0)
+            {
+                <p class="text-danger mt-2"><strong>This movie is out of stock!</strong></p>
+            }
+        }
+        <div class="modal fade @(showModal ? "show d-block" : "")" tabindex="-1" style="background: rgba(0,0,0,0.5);">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Confirm Order</h5>
+                        <button type="button" class="btn-close" @onclick="CloseOrderModal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p>Are you sure you want to order <strong>@movie.Title , @movie.Price $</strong>?</p>
+                    </div>
+                    <div class="modal-footer">
+                        <button class="btn btn-secondary" @onclick="CloseOrderModal">Cancel</button>
+                        <button class="btn btn-primary" @onclick="ConfirmOrder">Yes, Order</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private Movie? movie;
+    private bool isUser = false;
+    private bool showModal = false;
+    private User? user;
+    [SupplyParameterFromQuery]
+    private int Id { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        using var context = DbFactory.CreateDbContext();
+        movie = await context.Movies.FirstOrDefaultAsync(m => m.Id == Id);
+
+        if (movie is null)
+        {
+            NavigationManager.NavigateTo("notfound");
+        }
+        var userRole = await SessionService.GetUserRole();
+        isUser = userRole == "user";
+    }
+    private void ShowOrderModal()
+    {
+        showModal = true;
+    }
+
+    private void CloseOrderModal()
+    {
+        showModal = false;
+    }
+
+    private async Task ConfirmOrder()
+    {
+        if (movie == null || movie.Stocks <= 0) return; // Provera da li film postoji i da li je na stanju
+
+        using var context = DbFactory.CreateDbContext();
+
+        var loggedInUsername = await SessionService.GetUser();
+        Console.WriteLine($"Logged in user: {loggedInUsername}");
+
+        if (string.IsNullOrEmpty(loggedInUsername))
+        {
+            Console.WriteLine("Error: No logged-in user.");
+            return;
+        }
+
+        var user = await context.Users.FirstOrDefaultAsync(u => u.Username == loggedInUsername);
+
+        if (user == null)
+        {
+            Console.WriteLine("Error: User not found in the database.");
+            return;
+        }
+
+        Console.WriteLine($"User {user.Username} found. Proceeding with order...");
+
+        // Kreiramo narudžbinu
+        var order = new Order
+            {
+                UserId = user.Id,
+                MovieId = movie.Id,
+                Price = movie.Price,
+                OrderDate = DateTime.Now
+            };
+
+        context.Orders.Add(order);
+
+        // Smanjenje zaliha i čuvanje u bazi
+        movie.Stocks--;
+        context.Movies.Update(movie);
+        await context.SaveChangesAsync();
+
+        Console.WriteLine($"Order successfully placed for user {user.Username} and movie {movie.Title}");
+
+        showModal = false; // Zatvaranje modala
+    }
+
+
+}
